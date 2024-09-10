@@ -1,0 +1,66 @@
+from openpyxl import load_workbook
+from selenium.webdriver import Chrome
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import os
+import time
+import pyautogui as pag
+
+# Passo 1: Atualizar a Planilha Excel com Dados Novos
+
+# Carregando o arquivo Excel
+wb = load_workbook("arquivo.xlsx")
+ws = wb["Plan1"]
+
+# Copiando valores da coluna B (hoje) para a coluna C (ontem) - dados anteriores
+for row in ws.iter_rows(min_row=2, max_row=5, min_col=2, max_col=2):
+    for cell in row:
+        ws[f"C{cell.row}"] = cell.value  # Atualiza "Ontem" com valores antigos de "Hoje"
+
+# Iniciando o WebDriver para buscar os dados novos (hoje)
+driver = Chrome()
+
+try:
+    # Acessando o site
+    driver.get("https://www.ons.org.br/paginas/energia-agora/reservatorios")
+
+    # Aguardando que o elemento esteja disponível na página
+    selector = "#reservatorios_ctl00_ctl65_g_342da078_b4ba_4aeb_af3c_19e03ab7d3f6 > div.boxes > div > h5 > span"
+    elements = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector))
+    )
+
+    # Processando os valores dos elementos e atualizando "Hoje"
+    for r, element in enumerate(elements, start=2):
+        text = element.text.removesuffix("%").replace(",", ".")
+        
+        try:
+            n1 = float(text)
+            n2 = n1 / 100
+            ws[f"B{r}"] = n2  # Atualizando "Hoje" com os novos valores
+        except ValueError:
+            print(f"Erro ao converter o valor: {text}")
+
+finally:
+    # Fechando o WebDriver
+    driver.quit()
+
+# Salvando o arquivo Excel com os dados atualizados
+wb.save("arquivo.xlsx")
+
+# Passo 2: Automação do Power BI para Atualização
+
+# Abrir o Power BI Desktop
+# Substitua o caminho abaixo pelo caminho correto para o executável do Power BI no seu sistema
+os.startfile(r"C:\Users\Edmar\OneDrive\Documentos\Prog\Aula_01\BI.pbix")
+
+# Aguardar tempo suficiente para o Power BI abrir (ajuste o tempo conforme necessário)
+time.sleep(20)  # Aguarda 20 segundos para o Power BI abrir completamente
+
+# Pressionar CTRL + R para atualizar o relatório no Power BI Desktop
+pag.hotkey('ctrl', 'r')
+
+# (Opcional) Fechar o Power BI após a atualização
+# time.sleep(20)  # Espera 20 segundos para garantir que a atualização foi feita
+# pag.hotkey('alt', 'f4')
